@@ -202,7 +202,7 @@ break;
 }
 }
 }
-/*
+
 int main () {
 struct MEMORY_BLOCK memory_map[MAPMAX], new_memory_block;
 int cnt = 1;
@@ -235,6 +235,6 @@ free.process_id = 4;
 release_memory(free, memory_map, map_cnt);
 return 0;
 }
-*/
+
 
 
