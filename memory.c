@@ -1,53 +1,198 @@
+#include "oslabs.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>                                                                                                                                                                                                                                           
-#include <unistd.h>
-#include <time.h>
-#include <sys/times.h>
-
-int* vV;
-int** caM;         // Matrix
-int N, k;
-
-
-int *getVector(int n)  {
- int *m;
- m = (int *)malloc(n * sizeof(int));
- if (!m){ fprintf(stderr,"Vector Memory error!\n");exit(-1);}
- return m;
-}
-
-int **getMatrix(int a, int b)  {
-int i, **m;
-    m = (int **) malloc((int)a*sizeof(int*));
-    if (!m) { fprintf(stderr,"Matrix Memory error in step 1!\n"); exit(-1);}
-    for (i = 0; i < a; i++) {
-        m[i] = (int*) malloc((int)b*sizeof(int));
-        if (!m[i])  { fprintf(stderr,"Matrix Memory error in step 2!\n"); exit(-1);}
+struct MEMORY_BLOCK best_fit_allocate(int request_size, struct MEMORY_BLOCK memory_map[MAPMAX],int *map_cnt, int process_id) {
+    // Find best block
+    int block = -1;
+    for (int i=0; i< *map_cnt; i++) {
+        if (memory_map[i].process_id == 0 && memory_map[i].segment_size >= request_size) {
+            if ((block == -1) || (memory_map[i].segment_size < memory_map[block].segment_size)) {
+                block = i;
+            }
+        }
     }
-    return m;
+
+    // If there's no fit, then return the null block
+    if (block == -1) {
+        struct MEMORY_BLOCK null_block = {0,0,0,0};
+        return null_block;
+    }
+
+    // Split the block if needed
+    if (memory_map[block].segment_size > request_size) {
+        (*map_cnt)++;
+        for (int i=block+2; i< *map_cnt; i++) {
+            memory_map[i] = memory_map[i-1];
+        };
+        struct MEMORY_BLOCK free_block = {
+            memory_map[block].start_address + request_size,
+            memory_map[block].end_address,
+            memory_map[block].segment_size - request_size,
+            0};
+        memory_map[block+1] = free_block;
+        memory_map[block].end_address = memory_map[block].start_address + request_size - 1;
+        memory_map[block].segment_size = request_size;
+    }
+
+    // Allocate the block to the process
+    memory_map[block].process_id = process_id;
+
+    return memory_map[block];
 }
-void freeMemory(){
-int i;
-free(vV); vV=NULL;
-for (i=0; i<N; i++) { free(caM[i]); caM[i]=NULL;        } free(caM);     caM=NULL;
+
+struct MEMORY_BLOCK first_fit_allocate(int request_size, struct MEMORY_BLOCK memory_map[MAPMAX],int *map_cnt, int process_id) {
+    // Find first block
+    int block = -1;
+    for (int i=0; i< *map_cnt; i++) {
+        if (memory_map[i].process_id == 0 && memory_map[i].segment_size >= request_size) {
+            block = i;
+            break;
+        }
+    }
+
+    // If there's no fit, then return the null block
+    if (block == -1) {
+        struct MEMORY_BLOCK null_block = {0,0,0,0};
+        return null_block;
+    }
+
+    // Split the block if needed
+    if (memory_map[block].segment_size > request_size) {
+        (*map_cnt)++;
+        for (int i=block+2; i< *map_cnt; i++) {
+            memory_map[i] = memory_map[i-1];
+        };
+        struct MEMORY_BLOCK free_block = {
+            memory_map[block].start_address + request_size,
+            memory_map[block].end_address,
+            memory_map[block].segment_size - request_size,
+            0};
+        memory_map[block+1] = free_block;
+        memory_map[block].end_address = memory_map[block].start_address + request_size - 1;
+        memory_map[block].segment_size = request_size;
+    }
+
+    // Allocate the block to the process
+    memory_map[block].process_id = process_id;
+
+    return memory_map[block];
 }
-int main (int argc, char *argv[ ]){
-int i, j;
-   k=10; N=20;
-   vV=(int *) getVector(k);
-   for (i=0; i<k; i++) vV[i]=i;
-   for (i=0; i<k; i++) fprintf(stderr,"%d ", vV[i]);
-   fprintf(stderr,"\n\n");
-   caM=(int **) getMatrix(N,k);
-   for (i=0; i<N; i++) for (j=0; j<k; j++) caM[i][j]=i+j;
-   for (i=0; i<N; i++) {
-       for (j=0; j<k; j++) fprintf(stderr,"%2d ", caM[i][j]);
-       fprintf(stderr,"\n");
-   }
-   fprintf(stderr,"\n");
-   freeMemory();
-   return(0);
+
+struct MEMORY_BLOCK worst_fit_allocate(int request_size, struct MEMORY_BLOCK memory_map[MAPMAX],int *map_cnt, int process_id) {
+    // Find best block
+    int block = -1;
+    for (int i=0; i< *map_cnt; i++) {
+        if (memory_map[i].process_id == 0 && memory_map[i].segment_size >= request_size) {
+            if ((block == -1) || (memory_map[i].segment_size > memory_map[block].segment_size)) {
+                block = i;
+            }
+        }
+    }
+
+    // If there's no fit, then return the null block
+    if (block == -1) {
+        struct MEMORY_BLOCK null_block = {0,0,0,0};
+        return null_block;
+    }
+
+    // Split the block if needed
+    if (memory_map[block].segment_size > request_size) {
+        (*map_cnt)++;
+        for (int i=block+2; i< *map_cnt; i++) {
+            memory_map[i] = memory_map[i-1];
+        };
+        struct MEMORY_BLOCK free_block = {
+            memory_map[block].start_address + request_size,
+            memory_map[block].end_address,
+            memory_map[block].segment_size - request_size,
+            0};
+        memory_map[block+1] = free_block;
+        memory_map[block].end_address = memory_map[block].start_address + request_size - 1;
+        memory_map[block].segment_size = request_size;
+    }
+
+    // Allocate the block to the process
+    memory_map[block].process_id = process_id;
+
+    return memory_map[block];
+}
+
+struct MEMORY_BLOCK next_fit_allocate(int request_size, struct MEMORY_BLOCK   memory_map[MAPMAX],int *map_cnt, int process_id, int last_address) {
+    // Find first block greater than the last address
+    int block = -1;
+    for (int i=0; i< *map_cnt; i++) {
+        if (memory_map[i].process_id == 0 && memory_map[i].start_address >= last_address && memory_map[i].segment_size >= request_size) {
+            block = i;
+            break;
+        }
+    }
+
+    // If no block is found, find the free block with the lowest address
+    if (block = -1) {
+        for (int i=0; i< *map_cnt; i++) {
+            if (memory_map[i].process_id == 0 && memory_map[i].segment_size >= request_size) {
+                block = i;
+                break;
+            }
+        }
+    }
+
+    // If there's still no fit, then return the null block
+    if (block == -1) {
+        struct MEMORY_BLOCK null_block = {0,0,0,0};
+        return null_block;
+    }
+
+    // Split the block if needed
+    if (memory_map[block].segment_size > request_size) {
+        (*map_cnt)++;
+        for (int i=block+2; i< *map_cnt; i++) {
+            memory_map[i] = memory_map[i-1];
+        };
+        struct MEMORY_BLOCK free_block = {
+            memory_map[block].start_address + request_size,
+            memory_map[block].end_address,
+            memory_map[block].segment_size - request_size,
+            0};
+        memory_map[block+1] = free_block;
+        memory_map[block].end_address = memory_map[block].start_address + request_size - 1;
+        memory_map[block].segment_size = request_size;
+    }
+
+    // Allocate the block to the process
+    memory_map[block].process_id = process_id;
+
+    return memory_map[block];
+}
+
+void release_memory(struct MEMORY_BLOCK freed_block, struct MEMORY_BLOCK memory_map[MAPMAX],int *map_cnt) {
+    int block=-1;
+    for (int i=0; i< *map_cnt; i++) {
+        if (memory_map[i].start_address == freed_block.start_address) {
+            block = i;
+            break;
+        }
+    }
+
+    memory_map[block].process_id = 0;
+
+    if (block >= 1 && memory_map[block-1].process_id == 0) {
+        block--;
+        memory_map[block].end_address = memory_map[block+1].end_address;
+        memory_map[block].segment_size = memory_map[block].segment_size + memory_map[block+1].segment_size;
+
+        (*map_cnt)--;
+        for (int i=block+1; i< *map_cnt; i++) {
+            memory_map[i] = memory_map[i+1];
+        }
+    }
+
+    if (block < *map_cnt && memory_map[block+1].process_id == 0) {
+        memory_map[block].end_address = memory_map[block+1].end_address;
+        memory_map[block].segment_size = memory_map[block].segment_size + memory_map[block+1].segment_size;
+
+        (*map_cnt)--;
+        for (int i=block+1; i< *map_cnt; i++) {
+            memory_map[i] = memory_map[i+1];
+        }
+    }
 }
