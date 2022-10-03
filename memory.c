@@ -1,5 +1,4 @@
-/*  Description:  Program to illustrate how to manage vectors and matrices with dynamic memory.
- */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
