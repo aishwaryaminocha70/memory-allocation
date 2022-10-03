@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include "mymem.h"
+#include "oslabs.h"
 #include <time.h>
 
 /* The main structure for implementing memory allocation.
